@@ -1,21 +1,298 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Auction Cost Calculator PWA</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0a84ff"/>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Auction Cost Calculator</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--line:#e5e6ea;--label:#6b7280;--text:#0b1320;--accent:#0a84ff;--accent-soft:#e6f0ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif}
+.container{max-width:1280px;margin:0 auto;padding:20px;display:grid;gap:16px}
+.toolbar{display:flex;justify-content:space-between;align-items:center}
+.title{font-size:20px;font-weight:500;letter-spacing:.2px}
+.btn{border:1px solid var(--accent);background:var(--accent);color:#fff;padding:10px 14px;border-radius:12px;font-weight:500;cursor:pointer}
+.grid{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+@media (max-width:1100px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 8px 20px rgba(0,0,0,.06)}
+.panel h2{font-size:15px;margin:0 0 10px 0;font-weight:500}
+.section{display:grid;gap:12px}
+.g-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:900px){.g-3,.g-2{grid-template-columns:1fr}}
+label{font-size:12px;color:var(--label);display:block;margin-bottom:6px}
+.input{width:100%;border:1px solid var(--line);border-radius:14px;background:#fbfbfd;padding:12px 14px;font-size:15px;outline:none;transition:box-shadow .15s,border-color .15s}
+.input:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.input.invalid{border-color:#b91c1c}
+.input.invalid:focus{box-shadow:0 0 0 4px rgba(185,28,28,.2)}
+.error{min-height:16px;font-size:12px;color:#b91c1c;margin-top:6px}
+.group{border-top:1px dashed var(--line);margin-top:14px;padding-top:12px}
+.subhead{font-size:12px;letter-spacing:.2px;text-transform:uppercase;color:#6b7280;margin-bottom:6px}
+.input-wrap{position:relative}
+.prefix{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:13px;color:#6b7280;background:#f2f4f8;border:1px solid var(--line);border-radius:10px;padding:2px 6px;pointer-events:none}
+.pl-unit{padding-left:56px}
+.results{display:grid;gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 4px 14px rgba(0,0,0,.04)}
+.card .label{font-size:11px;letter-spacing:.2px;text-transform:uppercase;color:#64748b}
+.card .val{font-size:18px;font-weight:500}
+.card.hl{background:#f2fbf4;border-color:#cfeeda}
+.card.accent{background:#eef3ff;border-color:#dbe7ff}
+</style>
 </head>
 <body>
-<h1>Auction Cost Calculator</h1>
-<p>This is the PWA version placeholder.</p>
+<div class="container">
+  <div class="toolbar">
+    <div class="title">Auction Cost Calculator</div>
+    <button id="resetBtn" class="btn">Reset</button>
+  </div>
+
+  <div class="grid">
+    <div style="display:grid;gap:16px;align-content:start">
+      <div class="panel">
+        <h2>Auction & Domestic (JPY)</h2>
+        <div class="section g-3">
+          <div>
+            <label for="auctionJPY">Auction value (JPY)</label>
+            <input id="auctionJPY" class="input" type="text" inputmode="numeric" placeholder="e.g. 20,0000" />
+            <div class="error" id="err_auction"></div>
+          </div>
+          <div>
+            <label for="transportJPY">Transport fee (JPY)</label>
+            <input id="transportJPY" class="input" type="text" inputmode="numeric" placeholder="e.g. 8,0000" />
+            <div class="error" id="err_transport"></div>
+          </div>
+          <div>
+            <label for="fx">Exchange rate (JPY→NZD)</label>
+            <input id="fx" class="input" type="number" inputmode="decimal" step="0.0001" />
+            <div class="error" id="err_fx"></div>
+          </div>
+        </div>
+        <div class="group">
+          <div class="subhead">Auction results</div>
+          <div class="results">
+            <div class="card" id="feeCard"><div class="label">Auction Fee (10%)</div><div class="val" id="feeJPY">—</div></div>
+            <div class="card hl" id="totalAuctionCard"><div class="label">Total Auction Charges (JPY)</div><div class="val" id="auctionTotalJPY">—</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>CBM & RORO</h2>
+        <div class="section g-3">
+          <div>
+            <label for="vehicleModel">Vehicle Model</label>
+            <select id="vehicleModel" class="input">
+              <option value="Lexus CT200h">Lexus CT200h</option>
+              <option value="Toyota Aqua">Toyota Aqua</option>
+              <option value="Toyota RAV4 (2015+)">Toyota RAV4 (2015+)</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label for="Lcm">Length (cm)</label>
+            <input id="Lcm" class="input" type="number" step="1" />
+            <div class="error" id="err_L"></div>
+          </div>
+          <div>
+            <label for="Wcm">Width (cm)</label>
+            <input id="Wcm" class="input" type="number" step="1" />
+            <div class="error" id="err_W"></div>
+          </div>
+        </div>
+        <div class="section g-3" style="margin-top:12px">
+          <div>
+            <label for="Hcm">Height (cm)</label>
+            <input id="Hcm" class="input" type="number" step="1" />
+            <div class="error" id="err_H"></div>
+          </div>
+          <div>
+            <label for="rateCBM">Rate per CBM</label>
+            <div class="input-wrap">
+              <span class="prefix">NZD</span>
+              <input id="rateCBM" class="input pl-unit" type="number" step="1" />
+            </div>
+            <div class="error" id="err_rate"></div>
+          </div>
+        </div>
+        <div class="section g-2" style="margin-top:12px">
+          <div>
+            <label for="baf">BAF (NZD)</label>
+            <div class="input-wrap">
+              <span class="prefix">NZD</span>
+              <input id="baf" class="input pl-unit" type="number" step="1" />
+            </div>
+            <div class="error" id="err_baf"></div>
+          </div>
+          <div>
+            <label for="pcs">PCS (NZD)</label>
+            <div class="input-wrap">
+              <span class="prefix">NZD</span>
+              <input id="pcs" class="input pl-unit" type="number" step="1" />
+            </div>
+            <div class="error" id="err_pcs"></div>
+          </div>
+        </div>
+
+        <div class="group">
+          <div class="subhead">Shipping results</div>
+          <div class="results">
+            <div class="section g-2">
+              <div class="card" id="cbmCard"><div class="label">CBM (Actual)</div><div class="val" id="cbmActual">—</div></div>
+              <div class="card" id="cbmBillCard"><div class="label">CBM (Billable)</div><div class="val" id="cbmBill">—</div></div>
+            </div>
+            <div class="section g-2">
+              <div class="card" id="cbmCostNZDCard"><div class="label">CBM Cost (NZD)</div><div class="val" id="cbmCostNZD">—</div></div>
+              <div class="card" id="cbmCostJPYCard"><div class="label">CBM Cost (JPY)</div><div class="val" id="cbmCostJPY">—</div></div>
+            </div>
+            <div class="section g-2">
+              <div class="card" id="addersNZDCard"><div class="label">BAF + PCS (NZD)</div><div class="val" id="addersNZD">—</div></div>
+              <div class="card accent" id="shipNZDCard"><div class="label">Shipping Total (NZD)</div><div class="val" id="shipNZD">—</div></div>
+            </div>
+            <div class="section g-2">
+              <div class="card" id="shipJPYCard"><div class="label">Shipping Total (JPY)</div><div class="val" id="shipJPY">—</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="panel" style="position:sticky;top:16px">
+      <h2>CIF (Base)</h2>
+      <div class="results">
+        <div class="card hl" id="finalJPYCard"><div class="label">Final Total (JPY)</div><div class="val" id="finalJPY">—</div></div>
+        <div class="card accent" id="finalNZDCard"><div class="label">Final Total (NZD)</div><div class="val" id="finalNZD">—</div></div>
+      </div>
+    </aside>
+  </div>
+</div>
 <script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').then(reg => {
-    console.log('Service worker registered.', reg);
-  });
+const VEHICLE_DB={"Lexus CT200h":{L:430,W:176,H:146},"Toyota Aqua":{L:399,W:169,H:145},"Toyota RAV4 (2015+)":{L:460,W:185,H:169},"Other":{L:"",W:"",H:""}};
+const els={auctionJPY:document.getElementById('auctionJPY'),transportJPY:document.getElementById('transportJPY'),fx:document.getElementById('fx'),
+vehicleModel:document.getElementById('vehicleModel'),L:document.getElementById('Lcm'),W:document.getElementById('Wcm'),H:document.getElementById('Hcm'),
+rate:document.getElementById('rateCBM'),baf:document.getElementById('baf'),pcs:document.getElementById('pcs'),
+feeJPY:document.getElementById('feeJPY'),auctionTotalJPY:document.getElementById('auctionTotalJPY'),
+cbmActual:document.getElementById('cbmActual'),cbmBill:document.getElementById('cbmBill'),
+cbmCostNZD:document.getElementById('cbmCostNZD'),cbmCostJPY:document.getElementById('cbmCostJPY'),
+addersNZD:document.getElementById('addersNZD'),shipNZD:document.getElementById('shipNZD'),shipJPY:document.getElementById('shipJPY'),
+finalJPY:document.getElementById('finalJPY'),finalNZD:document.getElementById('finalNZD'),
+err_auction:document.getElementById('err_auction'),err_transport:document.getElementById('err_transport'),err_fx:document.getElementById('err_fx'),
+err_L:document.getElementById('err_L'),err_W:document.getElementById('err_W'),err_H:document.getElementById('err_H'),err_rate:document.getElementById('err_rate'),err_baf:document.getElementById('err_baf'),err_pcs:document.getElementById('err_pcs')};
+
+const defaults={fx:0.011,pct:10,rate:178,baf:7,pcs:12};
+
+let modelChosen=false;
+
+function toNum(v,fb=0){const n=Number(String(v??'').replace(/[^0-9.\-]/g,''));return Number.isFinite(n)?n:fb}
+function fmtNZD(n){return new Intl.NumberFormat('en-NZ',{style:'currency',currency:'NZD'}).format(n)}
+function fmtJPY4(n){n=Math.round(n||0);const sign=n<0?'-':'';const s=Math.abs(n).toString();if(s.length<=4)return '¥'+sign+s;return '¥'+sign+s.slice(0,-4)+','+s.slice(-4);}
+function formatJPY4InputFromDigits(d){const clean=String(d).replace(/\D/g,'');if(!clean)return '';if(clean.length<=4)return clean;return clean.slice(0,-4)+','+clean.slice(-4);}
+function parseDigits(s){const clean=String(s).replace(/\D/g,'');return clean?Number(clean):0}
+
+function setDims(name){const d=VEHICLE_DB[name];if(!d||name==='Other'){els.L.value='';els.W.value='';els.H.value='';els.L.disabled=els.W.disabled=els.H.disabled=false}else{els.L.value=d.L;els.W.value=d.W;els.H.value=d.H;els.L.disabled=els.W.disabled=els.H.disabled=true}}
+
+function setValidity(input,ok,msg,errEl){input.classList.toggle('invalid',!ok);if(errEl)errEl.textContent=ok?'':msg;return ok}
+
+function clearShippingCards(){['cbmActual','cbmBill','cbmCostNZD','cbmCostJPY','addersNZD','shipNZD','shipJPY'].forEach(id=>document.getElementById(id).textContent='—')}
+
+function validateShipping(){
+  if(!modelChosen) return false;
+  let okD=true;
+  if(els.L.disabled||els.W.disabled||els.H.disabled){els.err_L.textContent='';els.err_W.textContent='';els.err_H.textContent='';els.L.classList.remove('invalid');els.W.classList.remove('invalid');els.H.classList.remove('invalid')}
+  else{okD=setValidity(els.L,toNum(els.L.value)>0,'Enter length',els.err_L)&&setValidity(els.W,toNum(els.W.value)>0,'Enter width',els.err_W)&&setValidity(els.H,toNum(els.H.value)>0,'Enter height',els.err_H)}
+  const okR=setValidity(els.rate,toNum(els.rate.value)>0,'Enter rate',els.err_rate);
+  const okB=setValidity(els.baf,toNum(els.baf.value)>=0,'Must be ≥ 0',els.err_baf);
+  const okP=setValidity(els.pcs,toNum(els.pcs.value)>=0,'Must be ≥ 0',els.err_pcs);
+  return !!(okD&&okR&&okB&&okP);
 }
+
+function renderAuctionAndMaybeFinal(){
+  if(!els.fx.value){els.fx.value=String(defaults.fx)}
+  const auction=parseDigits(els.auctionJPY.value);
+  const transport=parseDigits(els.transportJPY.value);
+  const fx=toNum(els.fx.value,0);
+  const fee=(auction*defaults.pct)/100;
+  const auctionTotal=fee+transport;
+
+  els.feeJPY.textContent=fmtJPY4(fee);
+  els.auctionTotalJPY.textContent=fmtJPY4(auctionTotal);
+
+  let finalJPY=auctionTotal+auction;
+  if(validateShipping()){
+    const cbmActual=(toNum(els.L.value)/100)*(toNum(els.W.value)/100)*(toNum(els.H.value)/100);
+    const cbmBill=Math.ceil(cbmActual||0);
+    const baseNZD=cbmBill*toNum(els.rate.value);
+    const addNZD=cbmBill*(toNum(els.baf.value)+toNum(els.pcs.value));
+    const shipNZD=baseNZD+addNZD;
+    const shipJPY=fx>0?shipNZD/fx:0;
+
+    document.getElementById('cbmActual').textContent=cbmActual>0?cbmActual.toFixed(2):'–';
+    document.getElementById('cbmBill').textContent=String(cbmBill);
+    document.getElementById('cbmCostNZD').textContent=fmtNZD(baseNZD);
+    document.getElementById('cbmCostJPY').textContent=fmtJPY4(fx>0?baseNZD/fx:0);
+    document.getElementById('addersNZD').textContent=fmtNZD(addNZD);
+    document.getElementById('shipNZD').textContent=fmtNZD(shipNZD);
+    document.getElementById('shipJPY').textContent=fmtJPY4(shipJPY);
+
+    finalJPY+=shipJPY;
+  } else {
+    clearShippingCards();
+  }
+
+  els.finalJPY.textContent=fmtJPY4(finalJPY);
+  els.finalNZD.textContent=fmtNZD(finalJPY*toNum(els.fx.value,0));
+}
+
+function onJPYInput(e){
+  const t=e.target, digits=t.value.replace(/\D/g,''); t.value=formatJPY4InputFromDigits(digits);
+  renderAuctionAndMaybeFinal();
+}
+
+document.getElementById('auctionJPY').addEventListener('input',onJPYInput);
+document.getElementById('transportJPY').addEventListener('input',onJPYInput);
+['fx','Lcm','Wcm','Hcm'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',renderAuctionAndMaybeFinal);
+  document.getElementById(id).addEventListener('change',renderAuctionAndMaybeFinal);
+});
+['rateCBM','baf','pcs'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',renderAuctionAndMaybeFinal);
+  document.getElementById(id).addEventListener('change',renderAuctionAndMaybeFinal);
+});
+
+document.getElementById('vehicleModel').addEventListener('change',function(e){
+  const val=e.target.value;
+  modelChosen=!!val;
+  if(modelChosen){
+    setDims(val);
+    if(!els.rate.value) els.rate.value=String(defaults.rate);
+    if(!els.baf.value) els.baf.value=String(defaults.baf);
+    if(!els.pcs.value) els.pcs.value=String(defaults.pcs);
+  }else{
+    els.L.value='';els.W.value='';els.H.value='';els.L.disabled=els.W.disabled=els.H.disabled=false;
+  }
+  renderAuctionAndMaybeFinal();
+});
+
+document.getElementById('resetBtn').addEventListener('click',function(){
+  modelChosen=false;
+  els.auctionJPY.value=formatJPY4InputFromDigits('0');
+  els.transportJPY.value='';
+  els.fx.value=String(defaults.fx);
+  document.getElementById('vehicleModel').value='';
+  els.L.value='';els.W.value='';els.H.value='';els.L.disabled=els.W.disabled=els.H.disabled=false;
+  renderAuctionAndMaybeFinal();
+});
+
+(function init(){
+  els.fx.value=String(defaults.fx);
+  if(!els.transportJPY.value) els.transportJPY.value='';
+  if(!els.rate.value) els.rate.value='';
+  if(!els.baf.value) els.baf.value='';
+  if(!els.pcs.value) els.pcs.value='';
+  if(els.vehicleModel.value!==''){els.vehicleModel.value='';}
+  modelChosen=false;
+  clearShippingCards();
+  renderAuctionAndMaybeFinal();
+})();
 </script>
 </body>
 </html>
