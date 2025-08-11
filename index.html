@@ -293,6 +293,9 @@ document.getElementById('resetBtn').addEventListener('click',function(){
   clearShippingCards();
   renderAuctionAndMaybeFinal();
 })();
+  if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+}
 </script>
 </body>
 </html>
