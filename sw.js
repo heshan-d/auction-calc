@@ -1,6 +1,6 @@
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open('auction-calc-v1').then(cache => {
+    caches.open('auction-calc-v2').then(cache => {
       return cache.addAll([
         './',
         './index.html',
